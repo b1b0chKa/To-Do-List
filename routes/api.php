@@ -4,7 +4,10 @@ use App\Http\Controllers\API\CategoryController;
 use App\Http\Controllers\API\TagController;
 use App\Http\Controllers\API\TaskController;
 use App\Http\Controllers\API\UserController;
+use App\Http\Controllers\FeedbackController;
+use App\Models\feedback;
 use Illuminate\Support\Facades\Route;
+
 
 
 
@@ -85,3 +88,5 @@ Route::group([
 		Route::delete('/delete/{category_id}', [CategoryController::class, 'delete']);
 	}
 );
+
+Route::post('/feedback/create', [FeedbackController::class, 'createFeedback']);

@@ -8,94 +8,101 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Mockery\Matcher\HasKey;
+
+use function Laravel\Prompts\password;
 
 class UserController extends Controller
 {
     public function register(Request $request)
 	{
-		$request->validate([
-			'name' 		=> 'required|string|max:255',
-			'email' 	=> 'required|string|email|unique:users',
-			'password' 	=> 'required|string|min:8|confirmed',
-			'password_confirmation' => 'required'
+		$validate = $request->validate([
+			'name' 						=> 'required|string|max:100',
+			'email' 					=> 'required|email|string|unique:users',
+			'password' 					=> 'required|string|min:8|confirmed',
+			'password_confirmation' 	=> 'required'
 		]);
 
 		$user = User::create([
-			'name' 		=> $request->name,
-			'email' 	=> $request->email,
-			'password'	=> Hash::make($request->password),
+			'name' => $validate['name'],
+			'email' => $validate['email'],
+			'password' => Hash::make($validate['password'])
 		]);
 
 		$token = $user->createToken('auth_token')->plainTextToken;
 
+		if (!$user)
+			return response()->json('Пользователь не создан');
+
 		return response()->json([
-			'user' 	=> $user,
-			'token'	=> $token
-		], 201);
+			'message' 	=> 'Пользователь создан',
+			'user' 		=> $user,
+			'token'		=> $token,
+		]);
 	}
 
 	public function login(Request $request)
 	{
 		$request->validate([
-			'email' 	=> 'required|email|string',
-			'password' 	=> 'required'
+			'email' => 'required|string|email',
+			'password' => 'required'
 		]);
 
-		$user = User::where('email', $request->email)->first();
-
-		if (!$user)
-			return response()->json(['message' => 'User not found'], 404);
+		$checkUser = User::where('email', $request->email)->first();
+		if (!$checkUser)
+		{
+			return response()->json([
+				'message' => 'нет такого пользователя'
+			], 404);
+		}
 
 		if (!Auth::attempt($request->only('email', 'password')))
-			return response()->json(['message' => 'Неверные учетные данные'], 401);
+		{
+			return response()->json([
+				'message' => 'не верные учетные данные'
+			], 400);
+		}
 
-		$user = Auth::user();
+		$token = Auth::user()->createToken('auth_token')->plainTextToken;
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-		
 		return response()->json([
-			'user'	=> $user,
-			'token'	=> $token
+			'user' => Auth::user(),
+			'token' => $token
 		]);
 	}
 
 	public function profile(int $user_id)
 	{
-		if (!DB::table('users')->find($user_id))
+		$user = User::where('id', $user_id)->with('tasks')->first();
+
+		if (!$user)
 		{
 			return response()->json([
-				'message'=>'Такого пользователя нет'
+				'message' => 'такого не существует',
 			]);
 		}
 
-		return response()->json(User::find($user_id));
+		return response()->json(['user' => $user]);
 	}
 
 	public function updateProfile(Request $request)
 	{
-		$user = Auth::user();
-		// dd($user);
-		$request->validate([
-			'name' 	=> 'sometimes|string|min:2',
-			'email' => 'sometimes|email|string|max:255|unique:users,email',
-			'password' => 'sometimes|min:8|confirmed'
+		$validate = $request->validate([
+			'name' => 'sometimes|string|max:50',
+			'email' => 'sometimes|email|string|max:50',
+			'password' => 'sometimes|min:8|string'
 		]);
 
-		if ($request->has('name'))
-			$user->name = $request->name;
-	
-		if ($request->has('email'))
-			$user->email = $request->email;
+		$user = User::where('id', Auth::id())->firstOrFail();
 
+		if (!$user)
+			return response()->json(['message' => 'Not auth']);
 
-		if ($request->has('password'))
-			$user->password = Hash::make($request->password);
-
-		$user->save();
+		$user->update($validate);
 
 		return response()->json([
-			'message' 	=> 'Profile update',
-			'user' 		=> $user,
+			'message' => 'Profile is update',
+			'new_profile' => $user
 		]);
 	}
 

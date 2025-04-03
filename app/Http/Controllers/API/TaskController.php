@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\API;
 
 use App\Models\Task;
-use App\Models\TaskTag;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -20,20 +19,20 @@ class TaskController extends Controller
     public function create(Request $request)
     {
 		$validated = $request->validate([
-			'title' => 'required|string|max:50',
-			'description' => 'nullable|string|max:255',
-			'status' => 'required|in:pending,in_progress,completed',
-			'category_id' => 'nullable|exists:categories,id',
-			'tags' => 'nullable|array',
-			'tags.*' => 'exists:tags,id'
+			'title' 		=> 'required|string|max:50',
+			'description' 	=> 'nullable|string|max:255',
+			'status' 		=> 'required|in:pending,in_progress,completed',
+			'category_id' 	=> 'nullable|exists:categories,id',
+			'tags' 			=> 'nullable|array',
+			'tags.*' 		=> 'exists:tags,id'
 		]);
 	
 		$task = Task::create([
-			'title' => $validated['title'],
-			'description' => $validated['description'] ?? null,
-			'status' => $validated['status'],
-			'user_id' => Auth::id(),
-			'category_id' => $validated['category_id'] ?? null
+			'title' 		=> $validated['title'],
+			'description' 	=> $validated['description'] ?? null,
+			'status' 		=> $validated['status'],
+			'user_id' 		=> Auth::id(),
+			'category_id' 	=> $validated['category_id'] ?? null
 		]);
 	
 		if (!empty($validated['tags'])) {
@@ -56,7 +55,7 @@ class TaskController extends Controller
 		if(!$taskExists)
 			return response()->json(['message' => 'У вас нет такой задачи']);
 		
-		return response()->json($taskExists->toArray(), 200);
+		return response()->jwson($taskExists->toArray(), 200);
     }
 
     public function update(Request $request, int $taskId)
@@ -71,14 +70,14 @@ class TaskController extends Controller
         ]);
 
         $task = Task::where('id', '=', $taskId)
-            ->where('user_id', '=',Auth::id())
+            ->where('user_id', '=', Auth::id())
             ->firstOrFail();
-		// dd($task);
+
         $task->update($validated);
 
-        if (array_key_exists('tags', $validated)) {
+        if (array_key_exists('tags', $validated))
             $task->tags()->sync($validated['tags']);
-        }
+
 
         return response()->json(['message' => 'Задача обновлена']);
     }
